@@ -17,7 +17,7 @@ class ProcessExportProfile extends Process {
 
 	public static function getModuleInfo() {
 		return array(
-			'title' => 'Export Site Profile', 
+			'title' => 'Export Site Profile (RPS mod)',
 			'summary' => 'Create a site profile that can be used for a fresh install of ProcessWire.', 
 			'version' => 300, 
 			'icon' => 'truck', 
@@ -150,7 +150,8 @@ class ProcessExportProfile extends Process {
 		$f->description = $this->_('Alphanumeric short name for the profile.');
 		$f->notes = $this->_('Example: my-profile'); 
 		$f->columnWidth = 50; 
-		$f->required = true; 
+		$f->required = true;
+		$f->value = 'rps-default'; // RPS mod
 		$form->add($f); 
 
 		/** @var InputfieldText $f */
@@ -159,7 +160,8 @@ class ProcessExportProfile extends Process {
 		$f->label = $this->_('Title'); 
 		$f->columnWidth = 50; 
 		$f->description = $this->_('Human-readable title of the profile.'); 
-		$f->notes = $this->_('Example: My Profile'); 
+		$f->notes = $this->_('Example: My Profile');
+		$f->value = 'RPS default profile'; // RPS mod
 		$form->add($f); 
 
 		/** @var InputfieldTextarea $f */
@@ -189,7 +191,7 @@ class ProcessExportProfile extends Process {
 		$f->icon = 'file-zip-o';
 		$f->addOption(1, $this->_('ZIP file/download')); 
 		$f->addOption(0, $this->_('Server directory')); 
-		$f->attr('value', 1); 
+		$f->attr('value', 0); // RPS mod
 		$f->description = $this->_('If exporting to a ZIP file, you will be given the option to download it after the export is completed. If exporting to a server directory, you will copy the files off the server using your preferred transfer tool (FTP, etc.).'); // Profile destination description 
 		$f->notes = $this->_('If your site is exceptionally large, the ZIP file option may take significantly longer or may not be possible.'); 
 		$form->add($f); 
@@ -664,7 +666,10 @@ class ProcessExportProfile extends Process {
 
 			$lines[] = $_line; 
 		}
-		fclose($fp); 
+		fclose($fp);
+
+		// RPS mod: path to rps_config.php
+		$rps_path = $this->wire()->config->paths->site . 'rps_config.php';
 
 		// populate custom properties
 		foreach($lines as $key => $line) {
@@ -674,7 +679,16 @@ class ProcessExportProfile extends Process {
 				if(!in_array($property, $properties)) continue; 
 				$line .= $_line; 
 			}
+			// RPS mod: add rps_config.php include
+			// String is broken up here to avoid PW file compiler messing with it
+			if(is_file($rps_path)) $line .= "include __" . "DIR__ . '/rps_config.php';\n";
 			$lines[$key] = $line; 
+		}
+
+		// RPS mod: copy rps_config.php
+		if(is_file($rps_path)) {
+			$path = str_replace('config.php', '', $file);
+			copy($this->wire()->config->paths->site . 'rps_config.php', $path . 'rps_config.php');
 		}
 
 		if(!file_put_contents($file, $lines)) throw new WireException("Unable to write to $file"); 
